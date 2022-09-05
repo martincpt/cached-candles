@@ -80,7 +80,7 @@ class AutoCreateDirectories:
         """Gets or creates the given directory. 
 
         Args:
-            dir (str): The name of the directory to create.
+            dir (str): The name of the directory to get or create.
 
         Returns:
             str: The absolute path of the directory.
@@ -104,7 +104,7 @@ class AutoCreateDirectories:
 
 
 def auto_create_dirs(*args, **kwargs) -> AutoCreateDirectories:
-    """Generic shortcut for creating an AutoCreateDirectories instance on the fly for cases where a snake cased callable better fits the code style.
+    """Generic shortcut for creating an AutoCreateDirectories instance on the fly in case a snake cased callable better fits the code style.
 
     Returns:
         AutoCreateDirectories: The created AutoCreateDirectories instance.
