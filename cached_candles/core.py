@@ -315,7 +315,7 @@ class CachedDataFrame:
         """Returns the filtered and renamed output of the cached dataframe."""        
 
         # apply filtering and return
-        return CachedDataframe.apply_filter(self.cache, self.column_filter, self.column_rename)
+        return CachedDataFrame.apply_filter(self.cache, self.column_filter, self.column_rename)
 
     def apply_filter(
         df: pd.DataFrame, 
