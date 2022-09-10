@@ -73,7 +73,7 @@ class BitfinexCandlesAPI_TestCase(unittest.TestCase):
         ]
         # default args
         self.start = datetime.datetime.utcfromtimestamp(self.candles_sample[0][0] / 1000)
-        self.end = datetime.datetime.utcfromtimestamp(self.candles_sample[-1][0] / 1000)
+        self.end = datetime.datetime.utcfromtimestamp(self.candles_sample[-1][0] / 1000 + 60 * 60) # add an extra hour
         self.limit = len(self.candles_sample)
         self.args = {
             "symbol": "btcusd",
@@ -82,23 +82,23 @@ class BitfinexCandlesAPI_TestCase(unittest.TestCase):
             'end': self.end,
         }
         
-    @patch('cached_candles.BitfinexCandlesAPI.api')
-    def test_candles_no_result(self, bitfinex_mock) -> None:
-        bitfinex_mock.candles.return_value = []
+    @patch('cached_candles.BitfinexCandlesAPI.api.candles')
+    def test_candles_no_result(self, bitfinex_candles_mock) -> None:
+        bitfinex_candles_mock.return_value = []
         result = self.candles_api.candles(**self.args)
         self.assertEqual(len(result), 0)
 
-    @patch('cached_candles.BitfinexCandlesAPI.api')
-    def test_candles_error(self, bitfinex_mock) -> None:
-        bitfinex_mock.candles.return_value = self.error_sample
+    @patch('cached_candles.BitfinexCandlesAPI.api.candles')
+    def test_candles_error(self, bitfinex_candles_mock) -> None:
+        bitfinex_candles_mock.return_value = self.error_sample
         with self.assertRaises(APIError):
             self.candles_api.candles(**self.args)
 
-    @patch('cached_candles.BitfinexCandlesAPI.api')
-    def test_candles_single_api_call(self, bitfinex_mock) -> None:
+    @patch('cached_candles.BitfinexCandlesAPI.api.candles')
+    def test_candles_single_api_call(self, bitfinex_candles_mock) -> None:
         limit = len(self.candles_sample)
         self.candles_api.limit = limit
-        bitfinex_mock.candles.return_value = self.candles_sample[:limit]
+        bitfinex_candles_mock.return_value = self.candles_sample[:limit]
         result = self.candles_api.candles(**self.args)
         self.assertEqual(len(result), limit)
         self.assertEqual(self.candles_api.api_called, 1)
