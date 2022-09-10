@@ -221,22 +221,41 @@ class BitfinexCandlesAPI(CandlesAPI):
         
         return candles
         
+class CacheLoader:
+    """Handles logic to load, save or process the dataframe for the output."""
+    cache_path: str = None
+
+    def __init__(self, cache_path: str) -> None:
+        self.cache_path = cache_path
+
+    def load(self) -> pd.DataFrame:
+        try:
+            cache = pd.read_csv(self.cache_path, parse_dates=[TIME_COLUMN])
+        except FileNotFoundError:
+            cache = None
+        return cache
+
+    def save(self, df: pd.DataFrame) -> None:
+        df.to_csv(self.cache_path, header=True)
 
         
 class CachedCandles:
+    """
+    Handles all logic to retrieve candles from cache, or fetches from the given CandlesAPI service
+    if it doesn't exist. Puts the results into a dataframe, processes the output, 
+    and saves or updates data into the local cache.
+
+    Args:
+        candles_api (CandlesAPI | str): _description_
+        cache_root (str, optional): _description_. Defaults to None.
+    """
     candles_api: CandlesAPI = None
     APIs: tuple[CandlesAPI] = (BitfinexCandlesAPI,)
     dir_manager: AutoCreateDirectories = None
     cache_dir_path: str = None
 
     def __init__(self, candles_api: CandlesAPI|str, cache_root: str = None) -> None:
-        """Handles all logic to retrieve candles from cache, or fetch from CandlesAPI interface
-        and appropriately process and store data in local cache files.
-
-        Args:
-            candles_api (CandlesAPI | str): _description_
-            cache_root (str, optional): _description_. Defaults to None.
-        """
+        
         # set candles_api
         self.set_candles_api(candles_api)
 
@@ -267,7 +286,7 @@ class CachedCandles:
         cache_root = __file__ if cache_root is None else cache_root
         # setup and create required directories
         self.dir_manager = AutoCreateDirectories(base_dir = cache_root)
-        cache_dir_path_relative = self.dir_manager.get_path(DATASETS_DIR, self.candles_api.name)
+        cache_dir_path_relative = self.dir_manager.get_path(cache_dir, self.candles_api.name)
         self.cache_dir_path = self.dir_manager.create(cache_dir_path_relative)
         return self.cache_dir_path
 
@@ -317,13 +336,17 @@ class CachedCandles:
         # validate and clean dates
         start = CachedCandles.clean_date(start, "start")
         end = CachedCandles.clean_date(end, "end")
+
+        # collect the args
+        candle_args = (symbol, interval, start, end)
         
         # get cache path
-        cache_path = self.get_cache_path(symbol, interval, start, end)
+        cache_path = self.get_cache_path(*candle_args)
 
         # and check for cache
         try:
             cache = pd.read_csv(cache_path, parse_dates=[TIME_COLUMN])
+            print(cache)
         except FileNotFoundError:
             cache = None
 
@@ -352,7 +375,7 @@ class CachedCandles:
                 start = cache[TIME_COLUMN].max()
 
         # fetch candles from the api
-        result = self.candles_api.candles(symbol, interval, start, end)
+        result = self.candles_api.candles(*candle_args)
 
         # convert list of candles to pandas dataframe
         df = pd.DataFrame(result, columns=COLUMNS)
@@ -368,11 +391,6 @@ class CachedCandles:
 
         # return with the finalized full dataframe  
         return self.finalize(complete_df, cache_path, column_filter, column_rename)
-
-    def setup_index(self, df: pd.DataFrame) -> None:
-        # setup indexing
-        df.set_index(TIME_COLUMN, inplace=True)
-        df.sort_index(inplace=True) # just in case
 
     def apply_filter(
         self, df: pd.DataFrame, 
@@ -414,8 +432,9 @@ class CachedCandles:
         Returns:
             pd.DataFrame: The finalized and optionally column filtered and renamed dataframe.
         """        
-        # indexing
-        self.setup_index(df)
+        # setup indexing
+        df.set_index(TIME_COLUMN, inplace=True)
+        df.sort_index(inplace=True) # just in case
 
         # save cache 
         df.to_csv(cache_path, header=True)
@@ -427,19 +446,17 @@ class CachedCandles:
 
         return df
 
-    def datetime_to_string(self, date: datetime.datetime|str) -> str:
-        """Returns datetime as string"""
-        return date.isoformat().replace(':', '') if isinstance(date, datetime.datetime) else date
-
-    def get_cache_path(self, symbol: str, interval: str, start: DateType, end: ContinousDateType) -> str:
+    def get_cache_path(self, *args: datetime.datetime|str) -> str:
         """Returns the path of the cache directory."""
-        
-        # convert datetimes to strings
-        str_start = self.datetime_to_string(start)
-        str_end = self.datetime_to_string(end)
+        def format_arg(arg: datetime.datetime|str) -> str:
+            arg = arg.isoformat() if isinstance(arg, datetime.datetime) else arg
+            return arg.replace(":", "")
+
+        # generate the filename without extension
+        cache_filename_no_ext = "-".join(map(format_arg, args))
 
         # get the filename and path
-        cache_filename = f'{symbol}-{interval}-{str_start}-{str_end}.csv'
+        cache_filename = f'{cache_filename_no_ext}.csv'
         cache_path = self.dir_manager.get_path(self.cache_dir_path, cache_filename)
 
         return cache_path
