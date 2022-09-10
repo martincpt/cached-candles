@@ -52,6 +52,10 @@ class CandlesAPI(ABC):
 
     CandlesType = list[list]
 
+    def __init__(self) -> None:
+        if callable(self.api):
+            self.api = self.api()
+
     @abstractmethod
     def candles(
         self, symbol: str, interval: str = "1h",
@@ -138,7 +142,7 @@ class BitfinexCandlesAPI(CandlesAPI):
     """Candles API service for Bitfinex platform"""
 
     name: str = "bitfinex"
-    api: object = bitfinex.api_v2()
+    api: object = bitfinex.api_v2
     limit: int = 1000
 
     CandlesType = BitfinexCandlesType
@@ -221,29 +225,143 @@ class BitfinexCandlesAPI(CandlesAPI):
         
         return candles
         
-class CacheLoader:
-    """Handles logic to load, save or process the dataframe for the output."""
-    cache_path: str = None
+class CachedDataFrame:
+    """
+    Handles basic operation of a cached dataframe, such as load, save, append
+    or process the cached dataframe for the output.
 
-    def __init__(self, cache_path: str) -> None:
-        self.cache_path = cache_path
+    Args:
+        path (str): Cache path.
+        index_col (str | list[str], optional): Index column(s) to set. Defaults to None.
+        parse_dates (list, optional): Column(s) to parse dates from. Defaults to None.
+        column_filter (ColumnFilterType, optional): List of columns to keep in the output dataframe. Defaults to None.
+        column_rename (ColumnRenameType, optional): List of names to rename columns in the output dataframe. Defaults to None.
+    """
+
+    cache: pd.DataFrame = None
+
+    def __init__(self, 
+        path: str, 
+        index_col: str|list[str] = None, 
+        parse_dates: list = None,
+        column_filter: ColumnFilterType = None, 
+        column_rename: ColumnRenameType = None,
+    ) -> None:
+        
+        self.path = path
+        self.index_col = index_col
+        self.parse_dates = parse_dates
+        self.column_filter = column_filter
+        self.column_rename = column_rename
 
     def load(self) -> pd.DataFrame:
+        """Loads the dataframe from the local cache file.
+
+        Returns:
+            pd.DataFrame: The cached dataframe.
+        """
         try:
-            cache = pd.read_csv(self.cache_path, parse_dates=[TIME_COLUMN])
+            self.cache = pd.read_csv(self.path, index_col = self.index_col, parse_dates = self.parse_dates)
         except FileNotFoundError:
-            cache = None
-        return cache
+            self.cache = None
+        return self.cache
 
-    def save(self, df: pd.DataFrame) -> None:
-        df.to_csv(self.cache_path, header=True)
+    def save(self) -> None:
+        """Saves the current dataframe to the local cache file."""
+        if isinstance(self.cache, pd.DataFrame):
+            self.cache.to_csv(self.path, header=True)
+            print("Cache saved")
 
+    def append(self, 
+        df: pd.DataFrame, 
+        drop_duplicates: list[str] = None, 
+        keep: Literal["first", "last", False] = "last",
+        save: bool = False,
+    ) -> pd.DataFrame:
+        """Appends the given dataframe to the cache. Drops duplicates if set, by default keeps the last appearance.
+        Optionally saves the dataframe in to local cache.
+
+        Args:
+            df (pd.DataFrame): The dataframe to append.
+            drop_duplicates (list[str], optional): Subset of columns for identifying duplicates. Defaults to None.
+            keep (Literal[&quot;first&quot;, &quot;last&quot;, False], optional): Determines which duplicates (if any) to keep. Defaults to "last".
+            save (bool, optional): Saves the updated dataframe to the cache if True. Defaults to False.
+
+        Returns:
+            pd.DataFrame: The updated dataframe.
+        """
+        # copy new data
+        df = df.copy()
+        # get default value or a copy of cache df or a copy without index
+        cache = self.cache if self.cache is None else self.cache.copy() if self.index_col is None else self.cache.reset_index()
+        # concat the new dataframe with the cache
+        update = pd.concat([cache, df])
+        # drop duplicates if needed
+        if drop_duplicates:
+            update.drop_duplicates(drop_duplicates, keep = keep, inplace = True)
+        # setup indexing
+        update.set_index(self.index_col, inplace = True)
+        # sort index - just in case
+        update.sort_index(inplace = True)
+        # replace cache with the update
+        self.cache = update
+        # save cache 
+        if save:
+            self.save()
+        # return
+        return self.cache
+
+    def get_output(self) -> pd.DataFrame:
+        """Returns the filtered and renamed output of the cached dataframe."""        
+
+        # apply filtering and return
+        return CachedDataframe.apply_filter(self.cache, self.column_filter, self.column_rename)
+
+    def apply_filter(
+        df: pd.DataFrame, 
+        column_filter: ColumnFilterType = None, 
+        column_rename: ColumnRenameType = None
+    ) -> None:
+        """Class method to filter and rename columns in the given dataframe. Mostly this will be used to generate the output.
+
+        Args:
+            df (pd.DataFrame): The dateframe to filter and rename.
+            column_filter (ColumnFilterType, optional): List of columns to keep in the output dataframe. Defaults to None.
+            column_rename (ColumnRenameType, optional): List of names to rename columns in the output dataframe. Defaults to None.
+        """
+        # copy the dataframe
+        df = df.copy()
+
+        # handle default values of filter and rename arguments
+        column_filter = [] if column_filter is None else [column_filter] if isinstance(column_filter, str) else column_filter
+        column_rename = [] if column_rename is None else [column_rename] if isinstance(column_rename, str) else column_rename
+
+        # do the filtering
+        if column_filter:
+            # get rid of the rest
+            for col in df:
+                if col not in column_filter and col in df:
+                    del df[col]
         
+        # do the rename
+        if column_rename:
+            if isinstance(column_rename, list):
+                df.set_axis(column_rename, axis='columns', inplace=True)
+
+            if isinstance(column_rename, dict):
+                df.rename(column_rename, inplace=True)
+
+        return df
+    
 class CachedCandles:
-    """
+    """ TODO: Update docs.
+    Handles all logic to retrieve candles from cache, through a CachedDataFrame instance.
+
     Handles all logic to retrieve candles from cache, or fetches from the given CandlesAPI service
     if it doesn't exist. Puts the results into a dataframe, processes the output, 
     and saves or updates data into the local cache.
+
+    Responsible for calling CandlesAPI service and creating cache directories.
 
     Args:
         candles_api (CandlesAPI | str): _description_
@@ -290,7 +408,19 @@ class CachedCandles:
         self.cache_dir_path = self.dir_manager.create(cache_dir_path_relative)
         return self.cache_dir_path
 
-    def clean_date(date: DateType|ContinousDateType, point: Literal["start", "end"]):
+    def clean_date(date: DateType|ContinousDateType, point: Literal["start", "end"]) -> datetime.datetime|str:
+        """Cleans and validates "start" and "end" dates.
+
+        Args:
+            date (DateType | ContinousDateType): Datetime object, a parsable datetime string or "now" literal to use continuous mode.
+            point (Literal[&quot;start&quot;, &quot;end&quot;]): "start" or "end" literal to distinguishe the two.
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            _type_: _description_
+        """
         is_end = point == "end"
         is_continous = is_end and date in ContinousType.__args__
 
@@ -304,32 +434,29 @@ class CachedCandles:
             raise ValueError("`{}` must be either a datetime object, a datetime \
                 parsable string {} and it is required.".format(point, "or ContinousType" if is_end else ""))
 
-    def candles(
-        self, symbol: str, interval: str = "1h",
-        start: DateType|str = None, end: ContinousDateType|str = None,
-        column_filter: ColumnFilterType = None, column_rename: ColumnRenameType = None
+    def candles(self, 
+        symbol: str, interval: str = "1h",
+        start: DateType|str = None, 
+        end: ContinousDateType|str = CONTINUOUS,
+        column_filter: ColumnFilterType = None, 
+        column_rename: ColumnRenameType = None
     ) -> pd.DataFrame:
         """Fetches and stores candles with cache via CandlesAPI interface.
+        
+        The main function to get candles through a CachedDataFrame instance, and / or fetch and update them from the given a CandlesAPI service. 
+        This function intersects the two classes and implement the communication between them.
 
         Args:
-            symbol (str): _description_
-            interval (str, optional): _description_. Defaults to "1h".
-            start (DateType | str, optional): _description_. Defaults to None.
-            end (ContinousDateType | str, optional): _description_. Defaults to None.
-            column_filter (ColumnFilterType, optional): _description_. Defaults to None.
-            column_rename (ColumnRenameType, optional): _description_. Defaults to None.
+            symbol (str): Symbol of the current market ie.: "btcusd".
+            interval (str, optional): Length of the candles. Defaults to "1h".
+            start (DateType | str, optional): Start date of requested candles. Can be a datetime object or a datetime parsable string. Defaults to None.
+            end (ContinousDateType | str, optional): End date of requested candles. Accepts "now" to use continous mode, or can be a datetime object or a datetime parsable string. Defaults to "now".
+            column_filter (ColumnFilterType, optional): List of columns to keep in the output dataframe. Defaults to None.
+            column_rename (ColumnRenameType, optional): List of names to rename columns in the output dataframe. Defaults to None.
 
         Returns:
             pd.DataFrame: Time indexed dataframe of requested candles.
         """
-
-        # The list of dateframes we fetched from cache and api calls
-        # that we are going to concat at the end.
-        dfs = []
-
-        # set `end` to be ContinousType if it's None
-        end = end if end is not None else CONTINUOUS
-
         # helper flag
         is_continous = end in ContinousType.__args__
 
@@ -337,18 +464,28 @@ class CachedCandles:
         start = CachedCandles.clean_date(start, "start")
         end = CachedCandles.clean_date(end, "end")
 
-        # collect the args
-        candle_args = (symbol, interval, start, end)
-        
-        # get cache path
-        cache_path = self.get_cache_path(*candle_args)
+        # get args 
+        candle_args = {
+            "symbol": symbol,
+            "interval": interval,
+            "start": start,
+            "end": end,
+        }
 
-        # and check for cache
-        try:
-            cache = pd.read_csv(cache_path, parse_dates=[TIME_COLUMN])
-            print(cache)
-        except FileNotFoundError:
-            cache = None
+        # get the cache path from arg values
+        cache_path = self.get_cache_path(*tuple(candle_args.values()))
+
+        # create a CachedDataFrame instance
+        cached_df = CachedDataFrame(
+            cache_path, 
+            index_col = TIME_COLUMN, 
+            parse_dates = [TIME_COLUMN], 
+            column_filter = column_filter,
+            column_rename = column_rename
+        )
+
+        # load cache
+        cache = cached_df.load()
 
         # handle if cache found
         if cache is not None:
@@ -357,97 +494,43 @@ class CachedCandles:
                 # cache found with fixed dates so we are returning with its finalized format
                 # no need for update
                 print('Cache found with fixed dates, now we are returning with it.')
-                return self.finalize(cache, cache_path, column_filter, column_rename)
+                return cached_df.get_output()
             else:
                 # cache found but the query itself set to continuous mode
-                # we are going to need to check for update
+                # we are going to need to check for updates
                 print('Cache found. Update as continuous.')
 
                 # NOTE:
                 # last candle may change overtime so we must drop that and refetch
-                # that is because a candle is not getting its final datapoints until the given timeframe ends
+                # that's because a candle is not getting its final values until the given timeframe ends
 
-                # get the cached df without the last row
-                cached_df = cache.drop(cache.tail(1).index)
-                # and chain upon the list of dataframes to concat
-                dfs.append(cached_df)
-                # corrigate the start value for the api call
-                start = cache[TIME_COLUMN].max()
+                # corrigate the start value to include update for the api call
+                candle_args["start"] = cache.index.max()
 
         # fetch candles from the api
-        result = self.candles_api.candles(*candle_args)
+        result = self.candles_api.candles(**candle_args)
 
         # convert list of candles to pandas dataframe
         df = pd.DataFrame(result, columns=COLUMNS)
 
         # convert timestamps to datetime so it has the same format as the cached dataframe
-        df[TIME_COLUMN] = pd.to_datetime(df[TIME_COLUMN], unit='ms')
-
-        # append
-        dfs.append(df)
-
-        # concat dataframes
-        complete_df = pd.concat(dfs)
+        df[TIME_COLUMN] = pd.to_datetime(df[TIME_COLUMN], unit = "ms")
+        
+        # append to cache
+        cached_df.append(df, drop_duplicates = [TIME_COLUMN], keep = "last", save = True)
 
         # return with the finalized full dataframe  
-        return self.finalize(complete_df, cache_path, column_filter, column_rename)
-
-    def apply_filter(
-        self, df: pd.DataFrame, 
-        column_filter: ColumnFilterType = None, 
-        column_rename: ColumnRenameType = None
-    ) -> None:
-        # handle default values of filter and rename arguments
-        column_filter = [] if column_filter is None else [column_filter] if isinstance(column_filter, str) else column_filter
-        column_rename = [] if column_rename is None else [column_rename] if isinstance(column_rename, str) else column_rename
-
-        # do the filtering
-        if column_filter:
-            # get rid of the rest
-            for col in COLUMNS:
-                if col not in column_filter and col in df:
-                    del df[col]
-        
-        # do the rename
-        if column_rename:
-            if isinstance(column_rename, list):
-                df.set_axis(column_rename, axis='columns', inplace=True)
-
-            if isinstance(column_rename, dict):
-                df.rename(column_rename, inplace=True)
-
-    def finalize(
-        self, df: pd.DataFrame, cache_path: str,
-        column_filter: ColumnFilterType = None, 
-        column_rename: ColumnRenameType = None
-    ) -> pd.DataFrame:
-        """Finalizes the output and stores the unfiltered / unrenamed dataframe in the local cache directory.
-
-        Args:
-            df (pd.DataFrame): The dateframe to finalize.
-            cache_path (str): The path of the cache file.
-            column_filter (list[str], optional): List of columns to keep in the output dataframe. Defaults to None.
-            column_rename (list[str], optional): List of names to rename columns in the output dataframe. Defaults to None.
-
-        Returns:
-            pd.DataFrame: The finalized and optionally column filtered and renamed dataframe.
-        """        
-        # setup indexing
-        df.set_index(TIME_COLUMN, inplace=True)
-        df.sort_index(inplace=True) # just in case
-
-        # save cache 
-        df.to_csv(cache_path, header=True)
-
-        print("Cache saved")
-
-        # apply filtering and then return
-        self.apply_filter(df, column_filter, column_rename)
-
-        return df
+        return cached_df.get_output()
 
     def get_cache_path(self, *args: datetime.datetime|str) -> str:
-        """Returns the path of the cache directory."""
+        """Generates the filename and returns the absolute path of the cache file.
+
+        Args:
+            *args (datetime.datetime|str): List of strings or datetime to build the filename from.
+
+        Returns:
+            str: Absolute path of the cache file.
+        """        
         def format_arg(arg: datetime.datetime|str) -> str:
             arg = arg.isoformat() if isinstance(arg, datetime.datetime) else arg
             return arg.replace(":", "")
@@ -463,47 +546,8 @@ class CachedCandles:
 
 if __name__ == "__main__":
     print("main")
-    """
-    DEFAULT_ARGS = {
-        'symbol': config.SYMBOL,
-        'interval': config.INTERVAL, 
-        'start': config.START_DATE,
-        'end': config.END_DATE,
-        'limit': 10000, # cannot fetch more than 10000 at a time
-        'filter': ['close'], # we only need 'close' value 
-        'rename': ['price'], # renamed to 'price'
-    }
-    df = bitfinex_cache.candles(**DEFAULT_ARGS)
-    """
-    # bitfinex_cache = BitfinexCachedCandles()
-    # bitfinex_cache.candles(**DEFAULT_ARGS)
-
-    # CandlesAPI.get_utc_timestamp(datetime.datetime.utcnow())
-    
-    """api = BitfinexCandlesAPI()
-    cached = CachedCandles(api)
-
-    args = {
-        "symbol": "btcusd",
-        'interval': "1m", 
-        'start': "2022-09-05", # datetime.datetime(2022, 9, 5), # datetime.datetime(2019, 1, 1),
-        'end': 'now', # datetime.datetime(2022, 1, 3),
-        'limit': 1000, # cannot fetch more than 10000 at a time
-        'column_filter': ['close'], # we only need 'close' value 
-        'column_rename': ['price'], # renamed to 'price'
-    }
-
-    df = cached.candles(**args)
-
-    
-    cached.dir_manager.create('test')
-    print(api.api_called)"""
-    
-    # another = BitfinexCandlesAPI()
-    # print(another.api_called)
-
     bitfinex_cache = CachedCandles("bitfinex")
-
-    df = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "2021-05-15", column_filter = ["close"], column_rename = ["price"])
-
+    # df = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "2021-05-14", column_filter = ["close"], column_rename = ["price"])
+    df = bitfinex_cache.candles("btcusd", "1m", start = "2022-09-10 13:30", end = "now")
+    # df.to_csv("relative/test09783.csv")
     print(df)
