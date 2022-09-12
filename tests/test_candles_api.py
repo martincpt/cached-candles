@@ -113,6 +113,7 @@ class BitfinexCandlesAPI_TestCase(unittest.TestCase):
         split_by = 2
         self.prepare_multiply_api_call(split_by)
         bitfinex_mock.candles = self.multiply_api_call_mock
+        self.candles_api.api = bitfinex_mock # NOTE: we have to replace the actual object with the mock
         result = self.candles_api.candles(**self.args)
         self.assertListEqual(result, self.candles_sample)
         self.assertEqual(self.candles_api.api_called, split_by)
@@ -123,14 +124,15 @@ class BitfinexCandlesAPI_TestCase(unittest.TestCase):
         split_by = 2
         self.prepare_multiply_api_call(split_by)
         bitfinex_mock.candles = self.multiply_api_call_mock
+        self.candles_api.api = bitfinex_mock # NOTE: we have to replace the actual object with the mock
         get_utc_now_mock.return_value = self.end - datetime.timedelta(seconds=1)
         args = self.args.copy()
         args["end"] = CONTINUOUS
         result = self.candles_api.candles(**args)
-        self.assertListEqual(result, self.candles_sample)
-        self.assertEqual(self.candles_api.api_called, split_by)
         # last_date = datetime.datetime.utcfromtimestamp(result[-1][0] / 1000)
         # print(len(result), last_date)
-
+        self.assertListEqual(result, self.candles_sample)
+        self.assertEqual(self.candles_api.api_called, split_by)
+        
 if __name__ == '__main__':
     unittest.main()
