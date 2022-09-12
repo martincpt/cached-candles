@@ -8,15 +8,15 @@ ColumnRenameType = str|list[str]|dict
         
 class CachedDataFrame:
     """
-    Handles basic operation of a cached dataframe, such as load, save, append
-    or process the cached dataframe for the output.
+    Handles basic operation of a cached data frame, such as load, save, append
+    or process the cached data frame for the output.
 
     Args:
         path (str): Cache path.
         index_col (str | list[str], optional): Index column(s) to set. Defaults to None.
         parse_dates (list, optional): Column(s) to parse dates from. Defaults to None.
-        column_filter (ColumnFilterType, optional): List of columns to keep in the output dataframe. Defaults to None.
-        column_rename (ColumnRenameType, optional): List of names to rename columns in the output dataframe. Defaults to None.
+        column_filter (ColumnFilterType, optional): List of columns to keep in the output data frame. Defaults to None.
+        column_rename (ColumnRenameType, optional): List of names to rename columns in the output data frame. Defaults to None.
     """
 
     cache: pd.DataFrame = None
@@ -36,10 +36,10 @@ class CachedDataFrame:
         self.column_rename = column_rename
 
     def load(self) -> pd.DataFrame:
-        """Loads the dataframe from the local cache file.
+        """Loads the data frame from the local cache file.
 
         Returns:
-            pd.DataFrame: The cached dataframe.
+            pd.DataFrame: The cached data frame.
         """
         try:
             self.cache = pd.read_csv(self.path, index_col = self.index_col, parse_dates = self.parse_dates)
@@ -48,7 +48,7 @@ class CachedDataFrame:
         return self.cache
 
     def save(self) -> None:
-        """Saves the current dataframe to the local cache file."""
+        """Saves the current data frame to the local cache file."""
         if isinstance(self.cache, pd.DataFrame):
             self.cache.to_csv(self.path, header=True)
             print("Cache saved")
@@ -59,23 +59,23 @@ class CachedDataFrame:
         keep: Literal["first", "last", False] = "last",
         save: bool = False,
     ) -> pd.DataFrame:
-        """Appends the given dataframe to the cache. Drops duplicates if set, by default keeps the last appearance.
-        Optionally saves the dataframe in to local cache.
+        """Appends the given data frame to the cache. Drops duplicates if set, by default keeps the last appearance.
+        Optionally saves the data frame in to local cache.
 
         Args:
-            df (pd.DataFrame): The dataframe to append.
+            df (pd.DataFrame): The data frame to append.
             drop_duplicates (list[str], optional): Subset of columns for identifying duplicates. Defaults to None.
             keep (Literal[&quot;first&quot;, &quot;last&quot;, False], optional): Determines which duplicates (if any) to keep. Defaults to "last".
-            save (bool, optional): Saves the updated dataframe to the cache if True. Defaults to False.
+            save (bool, optional): Saves the updated data frame to the cache if True. Defaults to False.
 
         Returns:
-            pd.DataFrame: The updated dataframe.
+            pd.DataFrame: The updated data frame.
         """
         # copy new data
         df = df.copy()
         # get default value or a copy of cache df or a copy without index
         cache = self.cache if self.cache is None else self.cache.copy() if self.index_col is None else self.cache.reset_index()
-        # concat the new dataframe with the cache
+        # concat the new data frame with the cache
         update = pd.concat([cache, df])
         # drop duplicates if needed
         if drop_duplicates:
@@ -93,7 +93,7 @@ class CachedDataFrame:
         return self.cache
 
     def get_output(self) -> pd.DataFrame:
-        """Returns the filtered and renamed output of the cached dataframe."""        
+        """Returns the filtered and renamed output of the cached data frame."""        
 
         # apply filtering and return
         return CachedDataFrame.apply_filter(self.cache, self.column_filter, self.column_rename)
@@ -103,14 +103,14 @@ class CachedDataFrame:
         column_filter: ColumnFilterType = None, 
         column_rename: ColumnRenameType = None
     ) -> None:
-        """Class method to filter and rename columns in the given dataframe. Mostly this will be used to generate the output.
+        """Class method to filter and rename columns in the given data frame. Mostly this will be used to generate the output.
 
         Args:
             df (pd.DataFrame): The dateframe to filter and rename.
-            column_filter (ColumnFilterType, optional): List of columns to keep in the output dataframe. Defaults to None.
-            column_rename (ColumnRenameType, optional): List of names to rename columns in the output dataframe. Defaults to None.
+            column_filter (ColumnFilterType, optional): List of columns to keep in the output data frame. Defaults to None.
+            column_rename (ColumnRenameType, optional): List of names to rename columns in the output data frame. Defaults to None.
         """
-        # copy the dataframe
+        # copy the data frame
         df = df.copy()
 
         # handle default values of filter and rename arguments

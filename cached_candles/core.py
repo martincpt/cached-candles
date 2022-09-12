@@ -24,7 +24,7 @@ class CachedCandles:
     Handles all logic to retrieve candles from cache, through a CachedDataFrame instance.
 
     Handles all logic to retrieve candles from cache, or fetches from the given CandlesAPI service
-    if it doesn't exist. Puts the results into a dataframe, processes the output, 
+    if it doesn't exist. Puts the results into a data frame, processes the output, 
     and saves or updates data into the local cache.
 
     Responsible for calling CandlesAPI service and creating cache directories.
@@ -117,11 +117,11 @@ class CachedCandles:
             interval (str, optional): Length of the candles. Defaults to "1h".
             start (DateType | str, optional): Start date of requested candles. Can be a datetime object or a datetime parsable string. Defaults to None.
             end (ContinousDateType | str, optional): End date of requested candles. Accepts "now" to use continous mode, or can be a datetime object or a datetime parsable string. Defaults to "now".
-            column_filter (ColumnFilterType, optional): List of columns to keep in the output dataframe. Defaults to None.
-            column_rename (ColumnRenameType, optional): List of names to rename columns in the output dataframe. Defaults to None.
+            column_filter (ColumnFilterType, optional): List of columns to keep in the output data frame. Defaults to None.
+            column_rename (ColumnRenameType, optional): List of names to rename columns in the output data frame. Defaults to None.
 
         Returns:
-            pd.DataFrame: Time indexed dataframe of requested candles.
+            pd.DataFrame: Time indexed data frame of requested candles.
         """
         # helper flag
         is_continous = end in ContinousType.__args__
@@ -176,16 +176,16 @@ class CachedCandles:
         # fetch candles from the api
         result = self.candles_api.candles(**candle_args)
 
-        # convert list of candles to pandas dataframe
+        # convert list of candles to pandas data frame
         df = pd.DataFrame(result, columns=COLUMNS)
 
-        # convert timestamps to datetime so it has the same format as the cached dataframe
+        # convert timestamps to datetime so it has the same format as the cached data frame
         df[TIME_COLUMN] = pd.to_datetime(df[TIME_COLUMN], unit = "ms")
         
         # append to cache
         cached_df.append(df, drop_duplicates = [TIME_COLUMN], keep = "last", save = True)
 
-        # return with the finalized full dataframe  
+        # return with the finalized full data frame  
         return cached_df.get_output()
 
     def get_cache_path(self, *args: datetime.datetime|str) -> str:
