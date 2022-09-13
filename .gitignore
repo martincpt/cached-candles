@@ -1,5 +1,5 @@
 # ignore the cache directory
-**/datasets
+**/cache
 
 # Mac specific
 **/.DS_Store
