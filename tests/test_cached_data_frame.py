@@ -10,8 +10,7 @@ CURRENT_DIR: str = os.path.abspath(os.path.dirname(__file__))
 TEST_PATH: str = os.path.join(CURRENT_DIR, "test_cached_data_frame.csv")
 
 class CachedDataFrame_TestCase(unittest.TestCase):
-
-    @classmethod
+    
     def setUp(self) -> None:
         self.test_data_init = {
             "date": ["2022-07-12", "2022-07-13", "2022-07-14"],
