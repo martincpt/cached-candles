@@ -38,8 +38,7 @@ class CachedDataFrame_TestCase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        # os.remove(TEST_PATH)
-        pass
+        os.remove(TEST_PATH)
 
     def test_set_cache(self) -> None:
         cached_df = CachedDataFrame(path = "doesnt/matter/what/path/now.csv")
