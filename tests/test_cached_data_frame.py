@@ -1,12 +1,8 @@
-from ast import parse
 import unittest
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pandas as pd
-import datetime
-
-from unittest.mock import patch
 
 from cached_candles import CachedDataFrame
 
