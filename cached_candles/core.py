@@ -17,36 +17,54 @@ from cached_candles import ContinousType, DateType, ContinousDateType
 from cached_candles import CONTINUOUS, TIME_COLUMN, COLUMNS
 
 # Define constants
-DATASETS_DIR: str = 'datasets'
+CACHE_DIR: str = 'cache'
      
 class CachedCandles:
-    """ TODO: Update docs.
-    Handles all logic to retrieve candles from cache, through a CachedDataFrame instance.
+    """
+    Provides an interface to access locally cached candles, through a CachedDataFrame instance,
+    by symbol, interval, start and end date parameters.
+    
+    Uses CandlesAPI interface to fetch them if they are not available. Also, it optimizes 
+    the forwarded queries to the CandlesAPI instance, so it's capable to pick up 
+    where it left off, if the `end = "now"` which is continous mode.
 
-    Handles all logic to retrieve candles from cache, or fetches from the given CandlesAPI service
-    if it doesn't exist. Puts the results into a data frame, processes the output, 
-    and saves or updates data into the local cache.
+    Handles all logic to create required folder structures, load / save cache from them,
+    and to communicate with CandlesAPI instance.
 
-    Responsible for calling CandlesAPI service and creating cache directories.
+    Responsible to bridge a CandlesAPI and a CachedDataFrame objects,
+    and also for creating cache directories.
 
     Args:
-        candles_api (CandlesAPI | str): _description_
-        cache_root (str, optional): _description_. Defaults to None.
+        candles_api (CandlesAPI | str): A name of an available API or a CandlesAPI instance.
+        cache_dir (str, optional): Name of the cache directory. Defaults to None.
+        cache_root (str, optional): A path to create the cache directory. Defaults to None.
     """
     candles_api: CandlesAPI = None
     APIs: tuple[CandlesAPI] = (BitfinexCandlesAPI,)
     dir_manager: AutoCreateDirectories = None
     cache_dir_path: str = None
 
-    def __init__(self, candles_api: CandlesAPI|str, cache_root: str = None) -> None:
-        
+    def __init__(self, candles_api: CandlesAPI|str, cache_dir: str = None, cache_root: str = None) -> None:
         # set candles_api
         self.set_candles_api(candles_api)
 
         # setup directories
-        self.set_cache_dir(DATASETS_DIR, cache_root)
+        self.set_cache_dir(cache_dir, cache_root)
         
     def set_candles_api(self, candles_api: CandlesAPI|str) -> CandlesAPI:
+        """Sets and validates the given CandlesAPI instance or tries to load it from a string.
+        by a matching name attribute of CachedCandles.APIs.
+
+        Args:
+            candles_api (CandlesAPI | str): A CandlesAPI instance or a string of name identifier.
+
+        Raises:
+            ValueError: If invalid name given.
+            TypeError: If invalid type given.
+
+        Returns:
+            CandlesAPI: The final CandlesAPI instance.
+        """        
         # load api from string
         if isinstance(candles_api, str):
             # find where api name matches
@@ -64,14 +82,27 @@ class CachedCandles:
 
         # store candles api
         self.candles_api = candles_api
+
+        return self.candles_api
     
-    def set_cache_dir(self, cache_dir: str, cache_root: str = None) -> str:
-        # set default cache root
+    def set_cache_dir(self, cache_dir: str = None, cache_root: str = None) -> str:
+        """Creates and sets the cache directory in the provided cache root directory.
+
+        Args:
+            cache_dir (str, optional): Name of the cache directory. Defaults to None.
+            cache_root (str, optional): A path to create the cache directory. Defaults to None.
+
+        Returns:
+            str: The absolute path to the cache directory.
+        """
+        # set defaults
+        cache_dir = CACHE_DIR if cache_dir is None else cache_dir
         cache_root = __file__ if cache_root is None else cache_root
         # setup and create required directories
         self.dir_manager = AutoCreateDirectories(base_dir = cache_root)
-        cache_dir_path_relative = self.dir_manager.get_path(cache_dir, self.candles_api.name)
+        cache_dir_path_relative = self.dir_manager.join_path(cache_dir, self.candles_api.name)
         self.cache_dir_path = self.dir_manager.create(cache_dir_path_relative)
+        
         return self.cache_dir_path
 
     def clean_date(date: DateType|ContinousDateType, point: Literal["start", "end"]) -> datetime.datetime|str:
@@ -206,7 +237,7 @@ class CachedCandles:
 
         # get the filename and path
         cache_filename = f'{cache_filename_no_ext}.csv'
-        cache_path = self.dir_manager.get_path(self.cache_dir_path, cache_filename)
+        cache_path = self.dir_manager.join_path(self.cache_dir_path, cache_filename)
 
         return cache_path
 
