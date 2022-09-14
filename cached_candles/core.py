@@ -36,13 +36,16 @@ class CachedCandles:
 
     Args:
         candles_api (CandlesAPI | str): A name of an available API or a CandlesAPI instance.
-        cache_dir (str, optional): Name of the cache directory. Defaults to None.
-        cache_root (str, optional): A path to create the cache directory. Defaults to None.
+        cache_dir (str, optional): Name of the cache directory. Will use `CACHE_DIR: str = 'cache'` if None. Defaults to None.
+        cache_root (str, optional): A path to create the cache directory. Will use `__file__` if None. Defaults to None.
     """
     candles_api: CandlesAPI = None
     APIs: tuple[CandlesAPI] = (BitfinexCandlesAPI,)
+    cached_df: CachedDataFrame = None
     dir_manager: AutoCreateDirectories = None
     cache_dir_path: str = None
+    cache_api_path: str = None
+    
 
     def __init__(self, candles_api: CandlesAPI|str, cache_dir: str = None, cache_root: str = None) -> None:
         # set candles_api
@@ -86,24 +89,22 @@ class CachedCandles:
         return self.candles_api
     
     def set_cache_dir(self, cache_dir: str = None, cache_root: str = None) -> str:
-        """Creates and sets the cache directory in the provided cache root directory.
+        """Creates and sets the cache directory in the provided root directory.
 
         Args:
-            cache_dir (str, optional): Name of the cache directory. Defaults to None.
-            cache_root (str, optional): A path to create the cache directory. Defaults to None.
-
-        Returns:
-            str: The absolute path to the cache directory.
+            cache_dir (str, optional): Name of the cache directory. Will use `CACHE_DIR: str = 'cache'` if None. Defaults to None.
+            cache_root (str, optional): A path to create the cache directory. Will use `__file__` if None. Defaults to None.
         """
         # set defaults
         cache_dir = CACHE_DIR if cache_dir is None else cache_dir
         cache_root = __file__ if cache_root is None else cache_root
         # setup and create required directories
         self.dir_manager = AutoCreateDirectories(base_dir = cache_root)
-        cache_dir_path_relative = self.dir_manager.join_path(cache_dir, self.candles_api.name)
-        self.cache_dir_path = self.dir_manager.create(cache_dir_path_relative)
-        
-        return self.cache_dir_path
+        # get relative path of cache api directory {cache_dir}/{candles_api.name}
+        cache_api = self.dir_manager.join_path(cache_dir, self.candles_api.name)
+        # create and store paths
+        self.cache_dir_path = self.dir_manager.create(cache_dir)
+        self.cache_api_path = self.dir_manager.create(cache_api)
 
     def clean_date(date: DateType|ContinousDateType, point: Literal["start", "end"]) -> datetime.datetime|str:
         """Cleans and validates "start" and "end" dates.
@@ -140,8 +141,9 @@ class CachedCandles:
     ) -> pd.DataFrame:
         """Fetches and stores candles with cache via CandlesAPI interface.
         
-        The main function to get candles through a CachedDataFrame instance, and / or fetch and update them from the given a CandlesAPI service. 
-        This function intersects the two classes and implement the communication between them.
+        Tries to get candles from local cache first, through a CachedDataFrame instance, 
+        and / or fetch and update them from the given a CandlesAPI service. 
+        This function bridges the two classes and implement the communication between them.
 
         Args:
             symbol (str): Symbol of the current market ie.: "btcusd".
@@ -173,7 +175,7 @@ class CachedCandles:
         cache_path = self.get_cache_path(*tuple(candle_args.values()))
 
         # create a CachedDataFrame instance
-        cached_df = CachedDataFrame(
+        self.cached_df = CachedDataFrame(
             cache_path, 
             index_col = TIME_COLUMN, 
             parse_dates = [TIME_COLUMN], 
@@ -182,7 +184,7 @@ class CachedCandles:
         )
 
         # load cache
-        cache = cached_df.load()
+        cache = self.cached_df.load()
 
         # handle if cache found
         if cache is not None:
@@ -191,7 +193,7 @@ class CachedCandles:
                 # cache found with fixed dates so we are returning with its finalized format
                 # no need for update
                 print('Cache found with fixed dates, now we are returning with it.')
-                return cached_df.get_output()
+                return self.cached_df.get_output()
             else:
                 # cache found but the query itself set to continuous mode
                 # we are going to need to check for updates
@@ -214,10 +216,10 @@ class CachedCandles:
         df[TIME_COLUMN] = pd.to_datetime(df[TIME_COLUMN], unit = "ms")
         
         # append to cache
-        cached_df.append(df, drop_duplicates = [TIME_COLUMN], keep = "last", save = True)
+        self.cached_df.append(df, drop_duplicates = [TIME_COLUMN], keep = "last", save = True)
 
         # return with the finalized full data frame  
-        return cached_df.get_output()
+        return self.cached_df.get_output()
 
     def get_cache_path(self, *args: datetime.datetime|str) -> str:
         """Generates the filename and returns the absolute path of the cache file.
@@ -237,7 +239,7 @@ class CachedCandles:
 
         # get the filename and path
         cache_filename = f'{cache_filename_no_ext}.csv'
-        cache_path = self.dir_manager.join_path(self.cache_dir_path, cache_filename)
+        cache_path = self.dir_manager.join_path(self.cache_api_path, cache_filename)
 
         return cache_path
 
