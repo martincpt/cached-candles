@@ -12,34 +12,20 @@ from cached_candles import CachedCandles, CandlesAPI, BitfinexCandlesAPI, CONTIN
 
 from test_samples import BitfinexCandlesAPI_TestUtil
 
-CLEAN_UP: bool = False
+CLEAN_UP: bool = True
 
 class CachedCandles_TestCase(BitfinexCandlesAPI_TestUtil, unittest.TestCase):
 
     def setUp(self) -> None:
         super(CachedCandles_TestCase, self).setUp()
-        self.valid_api_name = "bitfinex"
-        # self.candles_api = BitfinexCandlesAPI()
+        self.valid_api_name = BitfinexCandlesAPI.name
         self.cached_candles = CachedCandles(self.candles_api, cache_root = __file__)
-        """self.candles_sample = bitfinex_candle_sample
-        self.multiply_api_call_mock = lambda **kwargs: self.candles_sample[
-            # [start : end]
-            (self.candles_api.api_called - 1) * self.candles_api.limit : self.candles_api.api_called * self.candles_api.limit
-        ]
-        # default args
-        self.start = datetime.datetime.utcfromtimestamp(self.candles_sample[0][0] / 1000)
-        self.end = datetime.datetime.utcfromtimestamp(self.candles_sample[-1][0] / 1000 + 60 * 60) # add an extra hour
-        self.args = {
-            "symbol": "btcusd",
-            'interval': "1h", 
-            'start': self.start,
-            'end': self.end,
-        }"""
     
     def tearDown(self) -> None:
         cache_dir_path = self.cached_candles.cache_dir_path
         cache_api_path = self.cached_candles.cache_api_path
-        if CLEAN_UP:
+        # clean up if empty
+        if CLEAN_UP and len(os.listdir(cache_api_path)) == 0:
             os.rmdir(cache_api_path)
             os.rmdir(cache_dir_path)
 
@@ -68,7 +54,7 @@ class CachedCandles_TestCase(BitfinexCandlesAPI_TestUtil, unittest.TestCase):
         cache_root = self.cached_candles.cache_dir_path
         custom_cache_dir = "custom"
         cached_candles = CachedCandles(self.valid_api_name, cache_dir = custom_cache_dir, cache_root = cache_root)
-        cache_dir_path = os.path.join(os.path.dirname(__file__), custom_cache_dir)
+        cache_dir_path = os.path.join(cache_root, custom_cache_dir)
         cache_api_path = os.path.join(cache_dir_path, cached_candles.candles_api.name)
         self.assertEqual(cached_candles.cache_dir_path, cache_dir_path)
         self.assertEqual(cached_candles.cache_api_path, cache_api_path)
@@ -116,6 +102,9 @@ class CachedCandles_TestCase(BitfinexCandlesAPI_TestUtil, unittest.TestCase):
         bitfinex_candles_mock.return_value = self.candles_sample[:limit]
         result = self.cached_candles.candles(**self.args)
         self.assertEqual(len(result), limit)
+        # now a cache exists, check if that returns
+        cached = self.cached_candles.candles(**self.args)
+        self.assertTrue(cached.equals(result))
         # clean up
         if CLEAN_UP:
             path = self.cached_candles.cached_df.path
@@ -143,7 +132,10 @@ class CachedCandles_TestCase(BitfinexCandlesAPI_TestUtil, unittest.TestCase):
         get_utc_now_mock.return_value = self.end - datetime.timedelta(seconds = 1)
         candles = self.cached_candles.candles(**args)
         self.assertEqual(len(candles), split_by * self.candles_api.limit)
-        
+        # clean up
+        if CLEAN_UP:
+            path = self.cached_candles.cached_df.path
+            os.remove(path)
     
 
 if __name__ == '__main__':
