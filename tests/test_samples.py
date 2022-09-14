@@ -1,3 +1,10 @@
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import datetime
+
+from cached_candles import BitfinexCandlesAPI
+
 # btcusd 1h 2022-07-12 - 2022-07-16
 bitfinex_candle_sample = [
     (1657584000000, 19945, 19806, 19980, 19779, 134.82641599), 
@@ -27,3 +34,32 @@ bitfinex_candle_sample = [
 ]
 
 bitfinex_candle_error_sample = ['error', 123456, 'Sample error message.']
+
+class BitfinexCandlesAPI_TestUtil:
+    def setUp(self) -> None:
+        self.candles_api = BitfinexCandlesAPI()
+        self.candles_sample = bitfinex_candle_sample
+        self.error_sample = bitfinex_candle_error_sample
+        self.multiply_api_call_mock = lambda **kwargs: self.candles_sample[
+            # [start : end]
+            (self.candles_api.api_called - 1) * self.candles_api.limit : self.candles_api.api_called * self.candles_api.limit
+        ]
+        # default args
+        self.start = datetime.datetime.utcfromtimestamp(self.candles_sample[0][0] / 1000)
+        self.end = datetime.datetime.utcfromtimestamp(self.candles_sample[-1][0] / 1000 + 60 * 60) # add an extra hour
+        self.limit = len(self.candles_sample)
+        self.args = {
+            "symbol": "btcusd",
+            'interval': "1h", 
+            'start': self.start,
+            'end': self.end,
+        }
+
+    def prepare_multiply_api_call(self, split_by: int, mock = None) -> None:
+        num_of_samples = len(self.candles_sample)
+        limit = int(num_of_samples / split_by)
+        self.candles_api.limit = limit
+        if mock is not None:
+            # NOTE: we have to replace the actual object with the mock
+            mock.candles = self.multiply_api_call_mock
+            self.candles_api.api = mock 

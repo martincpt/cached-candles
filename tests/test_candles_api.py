@@ -10,15 +10,12 @@ from cached_candles import CandlesAPI, BitfinexCandlesAPI, BitfinexCandleLength,
 from cached_candles.exceptions import APIError
 
 from test_samples import bitfinex_candle_sample, bitfinex_candle_error_sample
+from test_samples import BitfinexCandlesAPI_TestUtil
 
 class CandlesAPI_TestCase(unittest.TestCase):
 
-    @patch('builtins.print')
     @patch.multiple(CandlesAPI, __abstractmethods__ = set())
-    def test_api_rate_limit_call(self, mock_print) -> None:
-        # disable the print
-        mock_print.side_effect = None
-
+    def test_api_rate_limit_call(self) -> None:
         # setup
         candles_api = CandlesAPI()
         return_value = [[0, 1, 2, 3, 4, 5]]
@@ -61,26 +58,7 @@ class CandlesAPI_TestCase(unittest.TestCase):
             result = CandlesAPI.candle_len_2_minutes(rand_candle_len)
             self.assertEqual(result, rand_in_minutes)
 
-class BitfinexCandlesAPI_TestCase(unittest.TestCase):
-
-    def setUp(self) -> None:
-        self.candles_api = BitfinexCandlesAPI()
-        self.candles_sample = bitfinex_candle_sample
-        self.error_sample = bitfinex_candle_error_sample
-        self.multiply_api_call_mock = lambda **kwargs: self.candles_sample[
-            # [start : end]
-            (self.candles_api.api_called - 1) * self.candles_api.limit : self.candles_api.api_called * self.candles_api.limit
-        ]
-        # default args
-        self.start = datetime.datetime.utcfromtimestamp(self.candles_sample[0][0] / 1000)
-        self.end = datetime.datetime.utcfromtimestamp(self.candles_sample[-1][0] / 1000 + 60 * 60) # add an extra hour
-        self.limit = len(self.candles_sample)
-        self.args = {
-            "symbol": "btcusd",
-            'interval': "1h", 
-            'start': self.start,
-            'end': self.end,
-        }
+class BitfinexCandlesAPI_TestCase(BitfinexCandlesAPI_TestUtil, unittest.TestCase):
         
     @patch('cached_candles.BitfinexCandlesAPI.api.candles')
     def test_candles_no_result(self, bitfinex_candles_mock) -> None:
@@ -103,17 +81,10 @@ class BitfinexCandlesAPI_TestCase(unittest.TestCase):
         self.assertEqual(len(result), limit)
         self.assertEqual(self.candles_api.api_called, 1)
 
-    def prepare_multiply_api_call(self, split_by: int) -> None:
-        num_of_samples = len(self.candles_sample)
-        limit = int(num_of_samples / split_by)
-        self.candles_api.limit = limit
-
     @patch('cached_candles.BitfinexCandlesAPI.api')
     def test_candles_multiply_api_call(self, bitfinex_mock) -> None:
         split_by = 2
-        self.prepare_multiply_api_call(split_by)
-        bitfinex_mock.candles = self.multiply_api_call_mock
-        self.candles_api.api = bitfinex_mock # NOTE: we have to replace the actual object with the mock
+        self.prepare_multiply_api_call(split_by, bitfinex_mock)
         result = self.candles_api.candles(**self.args)
         self.assertListEqual(result, self.candles_sample)
         self.assertEqual(self.candles_api.api_called, split_by)
@@ -122,9 +93,7 @@ class BitfinexCandlesAPI_TestCase(unittest.TestCase):
     @patch('cached_candles.BitfinexCandlesAPI.api')
     def test_candles_continous_mode(self, bitfinex_mock, get_utc_now_mock):
         split_by = 2
-        self.prepare_multiply_api_call(split_by)
-        bitfinex_mock.candles = self.multiply_api_call_mock
-        self.candles_api.api = bitfinex_mock # NOTE: we have to replace the actual object with the mock
+        self.prepare_multiply_api_call(split_by, bitfinex_mock)
         get_utc_now_mock.return_value = self.end - datetime.timedelta(seconds=1)
         args = self.args.copy()
         args["end"] = CONTINUOUS

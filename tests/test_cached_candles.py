@@ -10,17 +10,18 @@ from unittest.mock import patch
 
 from cached_candles import CachedCandles, CandlesAPI, BitfinexCandlesAPI, CONTINUOUS
 
-from test_samples import bitfinex_candle_sample
+from test_samples import BitfinexCandlesAPI_TestUtil
 
 CLEAN_UP: bool = False
 
-class CachedCandles_TestCase(unittest.TestCase):
+class CachedCandles_TestCase(BitfinexCandlesAPI_TestUtil, unittest.TestCase):
 
     def setUp(self) -> None:
+        super(CachedCandles_TestCase, self).setUp()
         self.valid_api_name = "bitfinex"
-        self.candles_api = BitfinexCandlesAPI()
+        # self.candles_api = BitfinexCandlesAPI()
         self.cached_candles = CachedCandles(self.candles_api, cache_root = __file__)
-        self.candles_sample = bitfinex_candle_sample
+        """self.candles_sample = bitfinex_candle_sample
         self.multiply_api_call_mock = lambda **kwargs: self.candles_sample[
             # [start : end]
             (self.candles_api.api_called - 1) * self.candles_api.limit : self.candles_api.api_called * self.candles_api.limit
@@ -33,7 +34,7 @@ class CachedCandles_TestCase(unittest.TestCase):
             'interval': "1h", 
             'start': self.start,
             'end': self.end,
-        }
+        }"""
     
     def tearDown(self) -> None:
         cache_dir_path = self.cached_candles.cache_dir_path
@@ -64,8 +65,9 @@ class CachedCandles_TestCase(unittest.TestCase):
             CachedCandles(invalid_type)
 
     def test_init_with_custom_cache_dir(self) -> None:
+        cache_root = self.cached_candles.cache_dir_path
         custom_cache_dir = "custom"
-        cached_candles = CachedCandles(self.valid_api_name, cache_dir = custom_cache_dir, cache_root = __file__)
+        cached_candles = CachedCandles(self.valid_api_name, cache_dir = custom_cache_dir, cache_root = cache_root)
         cache_dir_path = os.path.join(os.path.dirname(__file__), custom_cache_dir)
         cache_api_path = os.path.join(cache_dir_path, cached_candles.candles_api.name)
         self.assertEqual(cached_candles.cache_dir_path, cache_dir_path)
@@ -119,39 +121,28 @@ class CachedCandles_TestCase(unittest.TestCase):
             path = self.cached_candles.cached_df.path
             os.remove(path)
 
-    def prepare_multiply_api_call(self, split_by: int) -> None:
-        num_of_samples = len(self.candles_sample)
-        limit = int(num_of_samples / split_by)
-        self.candles_api.limit = limit
-
     @patch('cached_candles.CandlesAPI.get_utc_now')
     @patch('cached_candles.BitfinexCandlesAPI.api')
     def test_candles_continous_mode(self, bitfinex_mock, get_utc_now_mock):
-        print(">>>>>>>>>>>>>>>")
-        
-        split_by = 2
-        self.prepare_multiply_api_call(split_by)
+        # make a copy of args and set to continous
         args = self.args.copy()
         args["end"] = CONTINUOUS
+        # get cache path
+        cache_path = self.cached_candles.get_cache_path(*tuple(args.values()))
+        # remove cache if exists
+        if os.path.exists(cache_path): os.remove(cache_path)
+        # prepare multiply api call
+        split_by = 2
+        self.prepare_multiply_api_call(split_by, bitfinex_mock)
+        # patch
         get_utc_now_mock.return_value = self.end - datetime.timedelta(hours = self.candles_api.limit, seconds = 1)
-        bitfinex_mock.candles = self.multiply_api_call_mock
-        self.candles_api.api = bitfinex_mock # NOTE: we have to replace the actual object with the mock
+        # get candles
         candles = self.cached_candles.candles(**args)
         self.assertEqual(len(candles), self.candles_api.limit)
-
-
-        print(self.start, self.end, CandlesAPI.get_utc_now(), self.candles_api.limit)
-        print(candles)
-        print(">>>>>>>>>>>>>>>")
-        return
-        now = datetime.datetime.utcnow()
-        today = now.replace(hour = 0, minute = 0, second = 0, microsecond = 0)
-        ytd = today - datetime.timedelta(days = 1)
-        b4_ytd = ytd - datetime.timedelta(days = 1)
-        hours_passed = math.ceil((now - b4_ytd).total_seconds() / (60 * 60))
-        args = ("btcusd", "1h", b4_ytd, "now")
-        candles = self.cached_candles.candles(*args)
-        print(hours_passed, len(candles))
+        # patch update
+        get_utc_now_mock.return_value = self.end - datetime.timedelta(seconds = 1)
+        candles = self.cached_candles.candles(**args)
+        self.assertEqual(len(candles), split_by * self.candles_api.limit)
         
     
 
