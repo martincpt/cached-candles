@@ -33,6 +33,7 @@ class CandlesAPI(ABC):
 
     name: str = None
     api: object = None
+    api_args: dict = None
 
     api_called: int = 0
 
@@ -43,7 +44,7 @@ class CandlesAPI(ABC):
 
     def __init__(self) -> None:
         if callable(self.api):
-            self.api = self.api()
+            self.api = self.api() if self.api_args is None else self.api(**self.api_args)
 
     @abstractmethod
     def candles(
@@ -132,6 +133,7 @@ class BitfinexCandlesAPI(CandlesAPI):
 
     name: str = "bitfinex"
     api: object = bitfinex.api_v2
+    api_args: dict = {"api_key": ""}
     limit: int = 1000
 
     CandlesType = BitfinexCandlesType
