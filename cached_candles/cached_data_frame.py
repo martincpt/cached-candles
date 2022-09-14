@@ -136,12 +136,15 @@ class CachedDataFrame:
             for col in parse_dates:
                 if col in df.columns and not np.issubdtype(df[col].dtype, np.datetime64):
                     df[col] = pd.to_datetime(df[col])
+        # check if has the right index
+        has_index = (isinstance(index_col, str) and index_col == df.index.name) or (isinstance(index_col, list) and df.index.name in index_col)
         # setup indexing if needed 
-        if index_col:
+        if index_col and not has_index:
             # set index
             df.set_index(index_col, inplace = True)
             # sort it - just in case
             df.sort_index(inplace = True)
+
         return df
 
     def apply_filter(
