@@ -7,8 +7,11 @@ VERSION = {}
 REQUIREMENTS = [i.strip() for i in open("requirements.txt").readlines()]
 
 with open("./cached_candles/__init__.py") as fp:
+    content = fp.read()
+    split_imports = content.split("from")
+    constants = split_imports[0]
     # pylint: disable=W0122
-    exec(fp.read(), VERSION)
+    exec(constants, VERSION)
 
 setup(
     name="cached_candles",
