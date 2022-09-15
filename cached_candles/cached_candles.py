@@ -10,7 +10,7 @@ from cached_candles import CachedDataFrame
 from cached_candles import ColumnFilterType, ColumnRenameType
 
 from cached_candles import CandlesAPI, BitfinexCandlesAPI
-from cached_candles import ContinousType, DateType, ContinousDateType
+from cached_candles import ContinuousType, DateType, ContinuousDateType
 from cached_candles import CONTINUOUS, TIME_COLUMN, COLUMNS
 
 # Define constants
@@ -23,7 +23,7 @@ class CachedCandles:
     
     Uses CandlesAPI interface to fetch them if they are not available. Also, it optimizes 
     the forwarded queries to the CandlesAPI instance, so it's capable to pick up 
-    where it left off, if the `end = "now"` which is continous mode.
+    where it left off, if the `end = "now"` which is continuous mode.
 
     Handles all logic to create required folder structures, load / save cache from them,
     and to communicate with CandlesAPI instance.
@@ -106,36 +106,36 @@ class CachedCandles:
         self.cache_dir_path = self.dir_manager.create(cache_dir)
         self.cache_api_path = self.dir_manager.create(cache_api)
 
-    def clean_date(date: DateType|ContinousDateType|str, point: Literal["start", "end"]) -> DateType|ContinousDateType:
+    def clean_date(date: DateType|ContinuousDateType|str, point: Literal["start", "end"]) -> DateType|ContinuousDateType:
         """Cleans and validates "start" and "end" dates.
 
         Args:
-            date (DateType | ContinousDateType): Datetime object, a parsable datetime string or "now" literal to use continuous mode.
+            date (DateType | ContinuousDateType): Datetime object, a parsable datetime string or "now" literal to use continuous mode.
             point (Literal[&quot;start&quot;, &quot;end&quot;]): "start" or "end" literal to distinguishe the two.
 
         Raises:
             ValueError: If invalid date has been given.
 
         Returns:
-            (DateType | ContinousDateType): The validated or parsed date, or the continuous literal.
+            (DateType | ContinuousDateType): The validated or parsed date, or the continuous literal.
         """
         is_end = point == "end"
-        is_continous = is_end and date in ContinousType.__args__
+        is_continuous = is_end and date in ContinuousType.__args__
 
         # early return the continuous and datetime types
-        if is_continous or isinstance(date, datetime.datetime):
+        if is_continuous or isinstance(date, datetime.datetime):
             return date
         
         try:
             return parse(date)
         except (TypeError, ParserError) as e:
             raise ValueError("`{}` must be either a datetime object, a datetime \
-                parsable string {} and it is required.".format(point, "or ContinousType" if is_end else ""))
+                parsable string {} and it is required.".format(point, "or ContinuousType" if is_end else ""))
 
     def candles(self, 
         symbol: str, interval: str = "1h",
         start: DateType|str = None, 
-        end: ContinousDateType|str = CONTINUOUS,
+        end: ContinuousDateType|str = CONTINUOUS,
         column_filter: ColumnFilterType = None, 
         column_rename: ColumnRenameType = None
     ) -> pd.DataFrame:
@@ -149,7 +149,7 @@ class CachedCandles:
             symbol (str): Symbol of the current market ie.: "btcusd".
             interval (str, optional): Length of the candles. Defaults to "1h".
             start (DateType | str, optional): Start date of requested candles. Can be a datetime object or a datetime parsable string. Defaults to None.
-            end (ContinousDateType | str, optional): End date of requested candles. Accepts "now" to use continous mode, or can be a datetime object or a datetime parsable string. Defaults to "now".
+            end (ContinuousDateType | str, optional): End date of requested candles. Accepts "now" to use continuous mode, or can be a datetime object or a datetime parsable string. Defaults to "now".
             column_filter (ColumnFilterType, optional): List of columns to keep in the output data frame. Defaults to None.
             column_rename (ColumnRenameType, optional): List of names to rename columns in the output data frame. Defaults to None.
 
@@ -157,7 +157,7 @@ class CachedCandles:
             pd.DataFrame: Time indexed data frame of requested candles.
         """
         # helper flag
-        is_continous = end in ContinousType.__args__
+        is_continuous = end in ContinuousType.__args__
 
         # validate and clean dates
         start = CachedCandles.clean_date(start, "start")
@@ -189,7 +189,7 @@ class CachedCandles:
         # handle if cache found
         if cache is not None:
             # check whether it's fixed dates or continuous.
-            if not is_continous:
+            if not is_continuous:
                 # cache found with fixed dates so we are returning with its finalized format
                 # no need for update
                 print('Cache found with fixed dates, now we are returning with it.')

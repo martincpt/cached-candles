@@ -4,7 +4,7 @@
 
 ## Fetches crypto candles with cache
 
-This package checks against the local cache by *symbol*, *interval*, *start* and *end* date parameters, whether the requested candles been already fetched and returns them if they are available. 
+This package checks against the local cache by ***symbol***, ***interval***, ***start*** and ***end*** date parameters, whether the requested candles been already fetched and returns them if they are available. 
 
 ## No more repetative queries
 
@@ -47,19 +47,19 @@ cached = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "202
 new_fetch = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "2021-05-16")
 ```
 
-## Continous Cache
-One of the coolest thing in this library is **continous** mode, which is by default if you haven't defined the ***end*** parameter.
+## Continuous Cache
+One of the coolest thing in this library is **continuous** mode, which is by default if you haven't defined the ***end*** parameter.
 
-Continous mode can be also used by passing `"now"` literal as the end parameter.
+Continuous mode can be also used by passing `"now"` literal as the end parameter.
 ```python
-# if end is not defined, continous mode will be used
+# if end is not defined, continuous mode will be used
 until_now = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08")
 
 # the same applies for passing 'now'
 until_now = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "now")
 ```
 
-**Continous mode can pick up where it left off** and capable to continously build the cache file without performing unnecessary API calls for existing datapoints.
+**Continuous mode can pick up where it left off** and capable to continuously build the cache file without performing unnecessary API calls for existing datapoints.
 
 ```python
 # calling the same query 24 hours later, will pick up the changes and / or any new candles only
@@ -69,7 +69,7 @@ pickup_changes = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", en
 ## Date types for `start` and `end` parameters
 `start` and `end` parameters accepts `datetime` types or any parsable datetime string which the `dateutil.parser.parse` library can parse.
 
-Only `end` accepts `"now"` literal and it will use continous mode.
+Only `end` accepts `"now"` literal and it will use continuous mode.
 
 ```python
 from datetime import datetime

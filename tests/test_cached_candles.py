@@ -68,7 +68,7 @@ class CachedCandles_TestCase(BitfinexCandlesAPI_TestUtil, unittest.TestCase):
         cleaned = CachedCandles.clean_date(date, "start")
         self.assertEqual(cleaned, date)
 
-    def test_clean_date_continous(self) -> None:
+    def test_clean_date_continuous(self) -> None:
         date = CONTINUOUS
         cleaned = CachedCandles.clean_date(date, "end")
         self.assertEqual(cleaned, date)
@@ -112,8 +112,8 @@ class CachedCandles_TestCase(BitfinexCandlesAPI_TestUtil, unittest.TestCase):
 
     @patch('cached_candles.CandlesAPI.get_utc_now')
     @patch('cached_candles.BitfinexCandlesAPI.api')
-    def test_candles_continous_mode(self, bitfinex_mock, get_utc_now_mock):
-        # make a copy of args and set to continous
+    def test_candles_continuous_mode(self, bitfinex_mock, get_utc_now_mock):
+        # make a copy of args and set to continuous
         args = self.args.copy()
         args["end"] = CONTINUOUS
         # get cache path

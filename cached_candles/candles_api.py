@@ -12,9 +12,9 @@ from collections import defaultdict
 from cached_candles.exceptions import APIError
 
 # Define types
-ContinousType = Literal["now"]
+ContinuousType = Literal["now"]
 DateType = datetime.datetime
-ContinousDateType = DateType|ContinousType
+ContinuousDateType = DateType|ContinuousType
 
 # Bitfinex types
 BitfinexCandleLength = Literal["1m", "5m", "15m", "30m", "1h", "3h", "6h", "12h", "1D", "1W"]
@@ -22,7 +22,7 @@ BitfinexCandleType = tuple[int, float, float, float, float]
 BitfinexCandlesType = list[BitfinexCandleType]
 
 # Define constants
-CONTINUOUS: ContinousType = 'now'
+CONTINUOUS: ContinuousType = 'now'
 
 # column names
 TIME_COLUMN: str = 'time'
@@ -49,7 +49,7 @@ class CandlesAPI(ABC):
     @abstractmethod
     def candles(
         self, symbol: str, interval: str = "1h",
-        start: DateType = None, end: ContinousDateType = None
+        start: DateType = None, end: ContinuousDateType = None
     ) -> CandlesType:
         """Perform API calls to fetch candles of that particular service.
 
@@ -140,14 +140,14 @@ class BitfinexCandlesAPI(CandlesAPI):
 
     def candles(
         self, symbol: str, interval: BitfinexCandleLength = "1h", 
-        start: DateType = None, end: ContinousDateType = None
+        start: DateType = None, end: ContinuousDateType = None
     ) -> CandlesType:
         # the list of candles we will return
         candles: BitfinexCandlesType = []
 
         # helper flags
-        is_continous = end in ContinousType.__args__
-        is_fixed_date = not is_continous
+        is_continuous = end in ContinuousType.__args__
+        is_fixed_date = not is_continuous
 
         # convert `start` and `end` datetimes to timestamps which the api accepts
         # create dictionary with temporary storing the input datetime objects
@@ -166,7 +166,7 @@ class BitfinexCandlesAPI(CandlesAPI):
             # exclude last candle if it's a fixed date query
             timestamps["end"] = timestamps["end"] - candle_len_in_ms
 
-        if is_continous:
+        if is_continuous:
             # use to the last possible candle / data point by getting utcnow as a timestamp
             timestamps["end"] = CandlesAPI.get_utc_timestamp(CandlesAPI.get_utc_now())
 

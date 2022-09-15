@@ -91,7 +91,7 @@ class BitfinexCandlesAPI_TestCase(BitfinexCandlesAPI_TestUtil, unittest.TestCase
 
     @patch('cached_candles.CandlesAPI.get_utc_now')
     @patch('cached_candles.BitfinexCandlesAPI.api')
-    def test_candles_continous_mode(self, bitfinex_mock, get_utc_now_mock):
+    def test_candles_continuous_mode(self, bitfinex_mock, get_utc_now_mock):
         split_by = 2
         self.prepare_multiply_api_call(split_by, bitfinex_mock)
         get_utc_now_mock.return_value = self.end - datetime.timedelta(seconds=1)
