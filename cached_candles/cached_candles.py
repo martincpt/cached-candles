@@ -6,9 +6,6 @@ from dateutil.parser import parse, ParserError
 
 from auto_create_directories import AutoCreateDirectories
 
-if __name__ == "__main__":
-    import add_root_to_sys_path
-
 from cached_candles import CachedDataFrame
 from cached_candles import ColumnFilterType, ColumnRenameType
 
@@ -242,11 +239,3 @@ class CachedCandles:
         cache_path = self.dir_manager.join_path(self.cache_api_path, cache_filename)
 
         return cache_path
-
-if __name__ == "__main__":
-    print("main")
-    bitfinex_cache = CachedCandles("bitfinex")
-    # df = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "2021-05-14", column_filter = ["close"], column_rename = ["price"])
-    df = bitfinex_cache.candles("btcusd", "1m", start = "2022-09-10 13:30", end = "now")
-    # df.to_csv("relative/test09783.csv")
-    print(df)

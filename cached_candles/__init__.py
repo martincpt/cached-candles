@@ -8,4 +8,4 @@ from cached_candles.candles_api import ContinousType, DateType, ContinousDateTyp
 from cached_candles.candles_api import BitfinexCandleLength, BitfinexCandleType, BitfinexCandlesType
 from cached_candles.candles_api import CONTINUOUS, TIME_COLUMN, COLUMNS
 
-from cached_candles.core import CachedCandles
+from cached_candles.cached_candles import CachedCandles
