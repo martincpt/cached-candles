@@ -95,15 +95,18 @@ class CachedCandles:
         # set defaults
         cache_dir = CACHE_DIR if cache_dir is None else cache_dir
         cache_root = __file__ if cache_root is None else cache_root
+
         # setup and create required directories
         self.dir_manager = AutoCreateDirectories(base_dir = cache_root)
+
         # get relative path of cache api directory {cache_dir}/{candles_api.name}
         cache_api = self.dir_manager.join_path(cache_dir, self.candles_api.name)
+
         # create and store paths
         self.cache_dir_path = self.dir_manager.create(cache_dir)
         self.cache_api_path = self.dir_manager.create(cache_api)
 
-    def clean_date(date: DateType|ContinousDateType, point: Literal["start", "end"]) -> datetime.datetime|str:
+    def clean_date(date: DateType|ContinousDateType|str, point: Literal["start", "end"]) -> DateType|ContinousDateType:
         """Cleans and validates "start" and "end" dates.
 
         Args:
@@ -111,15 +114,15 @@ class CachedCandles:
             point (Literal[&quot;start&quot;, &quot;end&quot;]): "start" or "end" literal to distinguishe the two.
 
         Raises:
-            ValueError: _description_
+            ValueError: If invalid date has been given.
 
         Returns:
-            _type_: _description_
+            (DateType | ContinousDateType): The validated or parsed date, or the continuous literal.
         """
         is_end = point == "end"
         is_continous = is_end and date in ContinousType.__args__
 
-        # earyl return the continuous and datetime types
+        # early return the continuous and datetime types
         if is_continous or isinstance(date, datetime.datetime):
             return date
         
