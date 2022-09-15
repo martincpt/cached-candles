@@ -134,7 +134,7 @@ class BitfinexCandlesAPI(CandlesAPI):
     name: str = "bitfinex"
     api: object = bitfinex.api_v2
     api_args: dict = {"api_key": ""}
-    limit: int = 1000
+    limit: int = 10000
 
     CandlesType = BitfinexCandlesType
 
