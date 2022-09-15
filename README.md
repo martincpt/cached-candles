@@ -2,9 +2,11 @@
 
 ![Requirement: Python >= 3.10](https://img.shields.io/badge/Python-%3E%3D%203.10-blue)
 
-## Fetches and serves crypto candles with cache
+## Fetches crypto candles with cache
 
 This package checks against the local cache by *symbol*, *interval*, *start* and *end* date parameters, whether the requested candles been already fetched and returns them if they are available. 
+
+## No more repetative queries
 
 With this, you can save plenty of time and bandwidth, without having to download them over and over again or worry that you get temporary banned by reaching api rate limits.
 
@@ -24,7 +26,9 @@ Results are returned within a Pandas DataFrame so they are ready to use for data
 
 ## Installation
 
-``` $ ```
+```
+pip install git+https://github.com/martincpt/cached-candles.git
+```
 
 ## Usage
 ```python
@@ -97,6 +101,17 @@ cached_candles = CachedCandles("bitfinex", cache_root = __file__)
 
 # if you are unstatisfied with the name `cache`, you can customize with `cache_dir`
 cached_candles = CachedCandles("bitfinex", cache_dir = "datasets", cache_root = __file__)
+```
+
+## Clearing the cache
+
+For now, you can clear the cache by removing the cache directory or the query specific cache file by hand.
+
+```python
+cached_candles = CachedCandles("bitfinex")
+
+# this will return current cache directory
+cache_path = cached_candles.cached_df.path
 ```
 
 ## TODO
