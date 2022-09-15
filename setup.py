@@ -1,10 +1,12 @@
 """Install packages as defined in this file into the Python environment."""
 from setuptools import setup, find_packages
 
+import re
+
 # The version of this tool is based on the following steps:
 # https://packaging.python.org/guides/single-sourcing-package-version/
 VERSION = {}
-REQUIREMENTS = [i.strip() for i in open("requirements.txt").readlines()]
+REQUIREMENTS = [re.sub(r'(git\+.*egg=(.*))', r'\2 @ \1', i.strip()) for i in open("requirements.txt").readlines()]
 
 with open("./cached_candles/__init__.py") as fp:
     content = fp.read()
