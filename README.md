@@ -36,20 +36,15 @@ from cached_candles import CachedCandles
 
 bitfinex_cache = CachedCandles("bitfinex")
 
-# this will store a csv file in cache directory 
-df = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "2021-05-15")
+# this will store a csv file in the cache directory 
+result = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "2021-05-15")
 
-# next time you run the same query, it will simply return the local cache result
+# next time you run the same query, it will simply return the local cache
 cached = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "2021-05-15")
 
-# for simplicty, any change in start or end parameters 
-# will result in performing new set of API calls for that timeframe
+# however, the following query will result in new set of API call(s)
 # even though overlapping data parts may be found in a different cache files
-# those will be ignored
-
-# so please note, the following query will fetches the whole timeframe again
-# and it stores another cache file, while we just changed the end date to one day later
-refetch = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "2021-05-16")
+new_fetch = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "2021-05-16")
 ```
 
 ## Continous Cache
