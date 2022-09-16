@@ -43,8 +43,10 @@ class CachedCandles_TestCase(CandlesAPI_BaseTestCase):
         candles_api_mock = CandlesAPI()
         candles_api_mock.name = "Patch name with any string to pass"
         valid_type = candles_api_mock
-        cached_candles = CachedCandles(valid_type)
+        cached_candles = CachedCandles(valid_type, cache_root = __file__)
         self.assertTrue(isinstance(cached_candles.candles_api, CandlesAPI))
+        if CLEAN_UP and os.path.exists(cached_candles.cache_api_path):
+            os.rmdir(cached_candles.cache_api_path)
 
     def test_init_with_invalid_api_name(self) -> None:
         with self.assertRaises(ValueError):
