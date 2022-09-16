@@ -9,7 +9,7 @@ from auto_create_directories import AutoCreateDirectories
 from cached_candles import CachedDataFrame
 from cached_candles import ColumnFilterType, ColumnRenameType
 
-from cached_candles import CandlesAPI, BitfinexCandlesAPI
+from cached_candles import CandlesAPI, BitfinexCandlesAPI, BinanceCandlesAPI
 from cached_candles import ContinuousType, DateType, ContinuousDateType
 from cached_candles import CONTINUOUS, TIME_COLUMN, COLUMNS
 
@@ -37,7 +37,7 @@ class CachedCandles:
         cache_root (str, optional): A path to create the cache directory. Will use `__file__` if None. Defaults to None.
     """
     candles_api: CandlesAPI = None
-    APIs: tuple[CandlesAPI] = (BitfinexCandlesAPI,)
+    APIs: tuple[CandlesAPI] = (BitfinexCandlesAPI, BinanceCandlesAPI)
     cached_df: CachedDataFrame = None
     dir_manager: AutoCreateDirectories = None
     cache_dir_path: str = None
