@@ -21,6 +21,7 @@ You don't even have to worry about if the requested timeframe contains more cand
 Results are returned within a Pandas DataFrame so they are ready to use for data analysis.
 
 ## Available platforms (API)
+##### No API keys needed!
 - Bitfinex (relies on [akcarsten/bitfinex_api](https://github.com/akcarsten/bitfinex_api))
 - Binance (relies on [sammchardy/python-binance](https://github.com/sammchardy/python-binance))
 
@@ -45,6 +46,18 @@ cached = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "202
 # however, the following query will result in new set of API call(s)
 # even though overlapping data parts may be found in a different cache files
 new_fetch = bitfinex_cache.candles("btcusd", "1h", start = "2021-05-08", end = "2021-05-16")
+```
+
+## Choosing the platform
+
+You can choose the platfrom upon initialization.
+
+```python
+# will use bitfinex
+bitfinex_cache = CachedCandles("bitfinex")
+
+# will use binance
+binance_cache = CachedCandles("binance")
 ```
 
 ## Continuous Cache
