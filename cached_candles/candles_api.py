@@ -1,7 +1,3 @@
-if __name__ == '__main__':
-    import sys, os
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import re
 import time
 import datetime
@@ -51,6 +47,8 @@ class CandlesAPI(ABC):
 
     api_rate_limit_at_every_nth_api_calls: int = 20
     api_rate_limit_sleep_time: int = 60
+
+    limit = None
 
     CandlesType = list[list]
 
@@ -303,7 +301,7 @@ class BinanceCandlesAPI(CandlesAPI):
             if len(result) == 0:
                 print(f"Empty result, breaking...")
                 break
-
+            
             # get candles from result
             for kline in result:
                 # create dict first
@@ -346,15 +344,3 @@ class BinanceCandlesAPI(CandlesAPI):
             break
         
         return candles
-
-if __name__ == '__main__':
-    bin = BinanceCandlesAPI()
-    args = {
-        "symbol": "BTCUSD",
-        "interval": "1h",
-        "start": datetime.datetime(2022, 7, 12),
-        "end": "now", # datetime.datetime(2022, 7, 13),
-    }
-    result = bin.candles(**args)
-    print(len(result))
-    pass
