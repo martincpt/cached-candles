@@ -22,7 +22,7 @@ Results are returned within a Pandas DataFrame so they are ready to use for data
 
 ## Available platforms (API)
 - Bitfinex (relies on [akcarsten/bitfinex_api](https://github.com/akcarsten/bitfinex_api))
-- Binance (coming soon)
+- Binance (relies on [sammchardy/python-binance](https://github.com/sammchardy/python-binance))
 
 ## Installation
 
@@ -110,6 +110,5 @@ cache_path = cached_candles.cached_df.path
 ```
 
 ## TODO
-- Add Binance API to available platforms
 - Add method(s) to remove cache(s)
 - Add ability to ignore cache (force refetch)
