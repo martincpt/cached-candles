@@ -233,6 +233,12 @@ class BinanceCandlesAPI(CandlesAPI):
     api: object = binance.Client
     limit: int = 1000
 
+    """
+    # NOTE
+    binance.Client seems like ignoring the limit attribute which is not really a problem
+    but larger queries definietley needs more time without any response.
+    """
+
     def candles(
         self, symbol: str, interval: BinanceCandleLength = "1h", 
         start: DateType = None, end: ContinuousDateType = None
