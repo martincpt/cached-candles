@@ -1,13 +1,20 @@
+if __name__ == '__main__':
+    import sys, os
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import re
 import time
 import datetime
 import calendar
 
 import bitfinex
+import binance
 
 from abc import ABC, abstractmethod
 from typing import Any, Literal, Callable
 from collections import defaultdict
+
+from binance.exceptions import BinanceAPIException
 
 from cached_candles.exceptions import APIError
 
@@ -16,10 +23,15 @@ ContinuousType = Literal["now"]
 DateType = datetime.datetime
 ContinuousDateType = DateType|ContinuousType
 
+# Candle types
+CandleType = tuple[int, float, float, float, float, float]
+CandlesType = list[CandleType]
+
 # Bitfinex types
 BitfinexCandleLength = Literal["1m", "5m", "15m", "30m", "1h", "3h", "6h", "12h", "1D", "1W"]
-BitfinexCandleType = tuple[int, float, float, float, float]
-BitfinexCandlesType = list[BitfinexCandleType]
+
+# Binance types
+BinanceCandleLength = Literal["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1D", "3D", "1W", "1M"]
 
 # Define constants
 CONTINUOUS: ContinuousType = 'now'
@@ -136,14 +148,12 @@ class BitfinexCandlesAPI(CandlesAPI):
     api_args: dict = {"api_key": ""}
     limit: int = 10000
 
-    CandlesType = BitfinexCandlesType
-
     def candles(
         self, symbol: str, interval: BitfinexCandleLength = "1h", 
         start: DateType = None, end: ContinuousDateType = None
     ) -> CandlesType:
         # the list of candles we will return
-        candles: BitfinexCandlesType = []
+        candles: CandlesType = []
 
         # helper flags
         is_continuous = end in ContinuousType.__args__
@@ -215,3 +225,130 @@ class BitfinexCandlesAPI(CandlesAPI):
             break
         
         return candles
+
+class BinanceCandlesAPI(CandlesAPI):
+    """Candles API service for Binance platform"""
+
+    name: str = "binance"
+    api: object = binance.Client
+    limit: int = 1000
+
+    def candles(
+        self, symbol: str, interval: BinanceCandleLength = "1h", 
+        start: DateType = None, end: ContinuousDateType = None
+    ) -> CandlesType:
+        # force symbol to use uppercase
+        symbol = symbol.upper()
+        
+        # the list of candles we will return
+        candles: CandlesType = [] 
+
+        # helper flags
+        is_continuous = end in ContinuousType.__args__
+        is_fixed_date = not is_continuous
+
+        # convert `start` and `end` datetimes to timestamps which the api accepts
+        # create dictionary with temporary storing the input datetime objects
+        timestamps = {"start": start, "end": end}
+        # and then convert to timestamps
+        for key, date in timestamps.items():
+            timestamp = CandlesAPI.get_utc_timestamp(date) if isinstance(date, datetime.datetime) else None
+            timestamps[key] = timestamp
+
+        # get candle length in minutes and ms for corrigations
+        candle_len_in_minutes = CandlesAPI.candle_len_2_minutes(interval)
+        candle_len_in_ms = candle_len_in_minutes * 60 * 1000
+
+        # adjust `end` timestamp
+        if is_fixed_date:
+            # exclude last candle if it's a fixed date query
+            timestamps["end"] = timestamps["end"] - candle_len_in_ms
+
+        if is_continuous:
+            # use to the last possible candle / data point by getting utcnow as a timestamp
+            timestamps["end"] = CandlesAPI.get_utc_timestamp(CandlesAPI.get_utc_now())
+
+        while True:
+            # set args
+            args = {
+                "symbol": symbol,
+                "interval": interval,
+                "start_str": timestamps["start"],
+                "end_str": timestamps["end"], 
+                "limit": self.limit,
+            }
+
+            # create the api callable object
+            api_call = lambda: self.api.get_historical_klines(**args)
+
+            try:
+                # get the result by excecuting via api rate limiter
+                result = self.api_rate_limit_call(api_call)
+            except BinanceAPIException as e:
+                # try USDT if invalid symbol error has been raised
+                invalid_symol = e.code == -1121
+                if invalid_symol and symbol.endswith("USD"):
+                    symbol = f"{symbol}T" 
+                    continue
+
+                raise APIError(e.message, error = e.code)
+
+            # validation
+            if len(result) == 0:
+                print(f"Empty result, breaking...")
+                break
+
+            # get candles from result
+            for kline in result:
+                # create dict first
+                candle = {
+                    'time': kline[0],
+                    'open': float(kline[1]),
+                    'high': float(kline[2]),
+                    'low': float(kline[3]),
+                    'close': float(kline[4]),
+                    'volume': float(kline[5]),
+                }
+                # make a tuple in the right order
+                bin_candle: CandleType = (
+                    candle['time'], 
+                    candle['open'], 
+                    candle['close'], 
+                    candle['high'], 
+                    candle['low'], 
+                    candle['volume']
+                )
+                # then append to the list of candles
+                candles.append(bin_candle)
+
+            # get last timestamp adjusted with candle length
+            last_timestamp = result[-1][0] + candle_len_in_ms
+
+            # check if we reached the end or must perform a new api call
+            if last_timestamp < timestamps['end']:
+                # start timestamp must be replaced with the corrigated last timestamp
+                timestamps['start'] = last_timestamp 
+                # convert to utc date so it's printable
+                adjusted_start = datetime.datetime.utcfromtimestamp(timestamps["start"] / 1000.0)
+                adjusted_end =  datetime.datetime.utcfromtimestamp(timestamps["end"] / 1000.0)
+                print(f"Adjusting fetch dates to: {adjusted_start} - {adjusted_end}")
+                # and then perform a new api call by stepping to the next iteration
+                continue
+            else:
+                print("Reached the end, breaking...")
+            
+            break
+        
+        return candles
+
+if __name__ == '__main__':
+    bin = BinanceCandlesAPI()
+    args = {
+        "symbol": "BTCUSD",
+        "interval": "1h",
+        "start": datetime.datetime(2022, 7, 12),
+        "end": "now", # datetime.datetime(2022, 7, 13),
+    }
+    result = bin.candles(**args)
+    print(len(result))
+    pass
