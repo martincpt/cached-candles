@@ -10,11 +10,13 @@ from unittest.mock import patch
 
 from cached_candles import CachedCandles, CandlesAPI, BitfinexCandlesAPI, CONTINUOUS
 
-from test_samples import BitfinexCandlesAPI_TestUtil
+from test_candles_api import CandlesAPI_BaseTestCase
 
 CLEAN_UP: bool = True
 
-class CachedCandles_TestCase(BitfinexCandlesAPI_TestUtil, unittest.TestCase):
+class CachedCandles_TestCase(CandlesAPI_BaseTestCase):
+
+    api_client_attr_to_mock = "candles"
 
     def setUp(self) -> None:
         super(CachedCandles_TestCase, self).setUp()
@@ -28,6 +30,9 @@ class CachedCandles_TestCase(BitfinexCandlesAPI_TestUtil, unittest.TestCase):
         if CLEAN_UP and len(os.listdir(cache_api_path)) == 0:
             os.rmdir(cache_api_path)
             os.rmdir(cache_dir_path)
+
+    def _create_instance(self) -> CandlesAPI:
+        return BitfinexCandlesAPI()
 
     def test_init_with_valid_api_name(self):
         cached_candles = CachedCandles(self.valid_api_name)
